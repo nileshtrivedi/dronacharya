@@ -1,0 +1,6 @@
+Detection/FastRCNN/proc/
+*.pyc
+PretrainedModels/AlexNet.model
+DataSets/DronesRaw.zip
+Detection/FastRCNN/results/Drones_500/visualizations/
+.idea/

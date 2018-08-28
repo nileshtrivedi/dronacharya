@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8' />
+    <title>Update a feature in realtime</title>
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.48.0/mapbox-gl.js'></script>
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.48.0/mapbox-gl.css' rel='stylesheet' />
+    <style>
+        body { margin:0; padding:0; }
+        #map { position:absolute; top:0; bottom:0; width:100%; }
+    </style>
+</head>
+<body>
+<style type='text/css'>
+#info {
+    display: block;
+    position: relative;
+    margin: 0px auto;
+    width: 50%;
+    padding: 10px;
+    border: none;
+    border-radius: 3px;
+    font-size: 12px;
+    text-align: center;
+    color: #222;
+    background: #fff;
+}
+
+.mapboxgl-popup {
+    max-width: 150px;
+}
+</style>
+<div id='map'></div>
+<pre id='info'></pre>
+<script src='//d3js.org/d3.v3.min.js' charset='utf-8'></script>
+<script>
+
+var trip;
+var fence;
+
+function slidepolygon(p, n){
+    var newp = [[]]
+    for(var ring = 0; ring < p.length; ring++){
+        for(var point = 0; point < p[ring].length; point++){
+            newp[0].push([p[ring][point][0] + n, p[ring][point][1] + n]);
+        }
+    }
+    return newp;
+}
+
+mapboxgl.accessToken = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4M29iazA2Z2gycXA4N2pmbDZmangifQ.-g_vE53SD2WrJ6tFX7QHmA';
+
+var map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/satellite-streets-v9',
+    zoom: 0
+});
+
+var popup = new mapboxgl.Popup({closeOnClick: false})
+    .setLngLat([77.682, 12.96])
+    .setHTML('<b>Amazon D56</b>')
+    .addTo(map);
+
+map.on('load', function () {
+    map.on('mousemove', function (e) {
+        document.getElementById('info').innerHTML =
+            // e.point is the x, y coordinates of the mousemove event relative
+            // to the top-left corner of the map
+            // JSON.stringify(e.point) + '<br />' +
+            // e.lngLat is the longitude, latitude geographical position of the event
+            JSON.stringify(e.lngLat);
+    });
+
+    map.addLayer({
+        'id': 'dangerzone',
+        'type': 'fill',
+        'source': {
+            'type': 'geojson',
+            'data': {
+                'type': 'Feature',
+                'geometry': {
+                    'type': 'Polygon',
+                    'coordinates': [
+                      [
+                        [
+                          77.5935548044306,
+                          13.081830301016115
+                        ],
+                        [
+                          77.59293253193914,
+                          13.073574347541205
+                        ],
+                        [
+                          77.60132248173772,
+                          13.07309361262322
+                        ],
+                        [
+                          77.60213787327825,
+                          13.081516788843846
+                        ],
+                        [
+                          77.5935548044306,
+                          13.081830301016115
+                        ]
+                      ]
+                    ]
+                }
+            }
+        },
+        'layout': {},
+        'paint': {
+            'fill-color': '#f44',
+            'fill-opacity': 0.8
+        }
+    });
+
+    map.addLayer({
+        'id': 'killzone',
+        'type': 'fill',
+        'source': {
+            'type': 'geojson',
+            'data': {
+                'type': 'Feature',
+                'geometry': {
+                    'type': 'Polygon',
+                    'coordinates': [
+                      [
+                        [
+                          77.59625066380545,
+                          13.079654960802664
+                        ],
+                        [
+                          77.59640086751028,
+                          13.076801960179075
+                        ],
+                        [
+                          77.59930838208243,
+                          13.07678105895384
+                        ],
+                        [
+                          77.59978045086905,
+                          13.07989532198515
+                        ],
+                        [
+                          77.59625066380545,
+                          13.079654960802664
+                        ]
+                      ]
+                    ]
+                }
+            }
+        },
+        'layout': {},
+        'paint': {
+            'fill-color': '#733',
+            'fill-opacity': 0.8
+        }
+    });
+
+    // We use D3 to fetch the JSON here so that we can parse and use it separately
+    // from GL JS's use in the added source. You can use any request method (library
+    // or otherwise) that you want.
+
+    d3.json('/fenceblr.geojson', function(err, fdata){
+        if (err) throw err;
+        fence = fdata;
+
+        map.addSource('fencesource', { type: 'geojson', data: {
+            type: 'Feature',
+            geometry: {
+                type: 'Polygon',
+                coordinates: fence.geometry.coordinates[0]
+            }
+        } });
+        map.addLayer({
+            'id': 'flightplan',
+            'type': 'fill',
+            'source': 'fencesource',
+            'layout': {},
+            'paint': {
+                'fill-color': '#084',
+                'fill-opacity': 0.6
+            }
+        });
+    });
+
+    d3.json('/tripblr.geojson', function(err, data) {
+        if (err) throw err;
+        trip = data;
+        // save full coordinate list for later
+        var coordinates = data.features[0].geometry.coordinates;
+
+        // start by showing just the first coordinate
+        data.features[0].geometry.coordinates = [coordinates[0]];
+
+        // add it to the map
+        map.addSource('trace', { type: 'geojson', data: data });
+        map.addLayer({
+            "id": "trace",
+            "type": "line",
+            "source": "trace",
+            "paint": {
+                "line-color": "yellow",
+                "line-opacity": 0.75,
+                "line-width": 5
+            }
+        });
+
+        // setup the viewport
+        map.jumpTo({ 'center': coordinates[0], 'zoom': 14 });
+        map.setPitch(30);
+
+        // on a regular basis, add more coordinates from the saved list and update the map
+        var i = 0;
+        var timer = window.setInterval(function() {
+            if (i < coordinates.length) {
+                data.features[0].geometry.coordinates.push(coordinates[i]);
+                map.getSource('fencesource').setData({
+                   type: 'Feature',
+                  geometry: {
+                       type: 'Polygon',
+                       coordinates: fence.geometry.coordinates[i]
+                   }
+                });
+                map.getSource('trace').setData(data);
+                map.panTo(coordinates[i]);
+                popup.setLngLat(coordinates[i]);
+                if(i > 0.97*coordinates.length){
+                    popup.setHTML('<h2 style="color: red">Danger!</h3><b>Amazon D56</b>');
+                } else if(i > 0.58*coordinates.length){
+                    popup.setHTML('<h2 style="color: orange">Warning!</h3><b>Amazon D56</b>');
+                }
+                i++;
+            } else {
+                window.clearInterval(timer);
+            }
+        }, 100);
+    });
+});
+</script>
+
+</body>
+</html>
