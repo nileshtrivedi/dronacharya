@@ -13,19 +13,6 @@
 </head>
 <body>
 <style type='text/css'>
-#info {
-    display: block;
-    position: relative;
-    margin: 0px auto;
-    width: 50%;
-    padding: 10px;
-    border: none;
-    border-radius: 3px;
-    font-size: 12px;
-    text-align: center;
-    color: #222;
-    background: #fff;
-}
 
 .mapboxgl-popup {
     max-width: 150px;
@@ -63,14 +50,6 @@ var popup = new mapboxgl.Popup({closeOnClick: false})
     .addTo(map);
 
 map.on('load', function () {
-    map.on('mousemove', function (e) {
-        document.getElementById('info').innerHTML =
-            // e.point is the x, y coordinates of the mousemove event relative
-            // to the top-left corner of the map
-            // JSON.stringify(e.point) + '<br />' +
-            // e.lngLat is the longitude, latitude geographical position of the event
-            JSON.stringify(e.lngLat);
-    });
 
     map.addLayer({
         'id': 'dangerzone',
