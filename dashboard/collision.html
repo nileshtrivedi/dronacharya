@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8' />
+    <title>Update a feature in realtime</title>
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+    <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.48.0/mapbox-gl.js'></script>
+    <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.48.0/mapbox-gl.css' rel='stylesheet' />
+    <style>
+        body { margin:0; padding:0; }
+        #map { position:absolute; top:0; bottom:0; width:100%; }
+    </style>
+</head>
+<body>
+<style type='text/css'>
+
+.mapboxgl-popup {
+    max-width: 150px;
+}
+</style>
+<div id='map'></div>
+<pre id='info'></pre>
+<script src='//d3js.org/d3.v3.min.js' charset='utf-8'></script>
+<script>
+
+var trip;
+var fence;
+
+var status;
+
+status = 1;
+
+document.onkeypress = function (e) {
+    console.log("pressed");
+    status = 0;
+};
+// document.getElementById("demo").addEventListener("keydown", statusOff);
+
+function statusOff() {
+    status = false;
+}
+
+function slidepolygon(p, n){
+    var newp = [[]]
+    for(var ring = 0; ring < p.length; ring++){
+        for(var point = 0; point < p[ring].length; point++){
+            newp[0].push([p[ring][point][0] + n, p[ring][point][1] + n]);
+        }
+    }
+    return newp;
+}
+
+mapboxgl.accessToken = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4M29iazA2Z2gycXA4N2pmbDZmangifQ.-g_vE53SD2WrJ6tFX7QHmA';
+
+var map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/satellite-streets-v9',
+    zoom: 0
+});
+
+var popup = new mapboxgl.Popup({closeOnClick: false})
+    .setLngLat([77.682, 12.96])
+    .setHTML('<b>Amazon D56</b>')
+    .addTo(map);
+
+var popup2 = new mapboxgl.Popup({closeOnClick: false})
+    .setLngLat([77.682, 12.96])
+    .setHTML('<b>Flipkart S24</b>')
+    .addTo(map);
+
+map.on('load', function () {
+    d3.json('/tripblr2.geojson', function(err, data) {
+        if (err) throw err;
+        trip = data;
+        // save full coordinate list for later
+        var coordinates = data.features[0].geometry.coordinates;
+
+        // start by showing just the first coordinate
+        data.features[0].geometry.coordinates = [coordinates[0]];
+
+        // add it to the map
+        map.addSource('trace', { type: 'geojson', data: data });
+        map.addLayer({
+            "id": "trace",
+            "type": "line",
+            "source": "trace",
+            "paint": {
+                "line-color": "yellow",
+                "line-opacity": 0.75,
+                "line-width": 5
+            }
+        });
+
+        // setup the viewport
+        map.jumpTo({ 'center': coordinates[0], 'zoom': 14 });
+        map.setPitch(30);
+
+        // on a regular basis, add more coordinates from the saved list and update the map
+        var i = 0;
+        var timer = window.setInterval(function() {
+            if (i < coordinates.length) {
+                console.log(status);
+                if (status == 0) {
+
+                    // window.clearInterval(timer);
+                    // console.log("terminated")
+                }    
+                data.features[0].geometry.coordinates.push(coordinates[i]);
+                map.getSource('trace').setData(data);
+                map.panTo(coordinates[i]);
+                popup.setLngLat(coordinates[i]);
+                if(i > 0.97*coordinates.length && status == 1){
+                    popup.setHTML('<h2 style="color: red">Danger! Collided</h3><b>Amazon D56</b>');
+                } else if(i > 0.58*coordinates.length){
+                    popup.setHTML('<h2 style="color: orange">Warning! Collision in Vicinity</h3><b>Amazon D56</b>');
+                }
+                i++;
+            } else {
+                window.clearInterval(timer);
+            }
+        }, 100);
+    });
+
+    d3.json('/tripblr3.geojson', function(err, data) {
+        if (err) throw err;
+        trip = data;
+        // save full coordinate list for later
+        var coordinates = data.features[0].geometry.coordinates;
+
+        // start by showing just the first coordinate
+        data.features[0].geometry.coordinates = [coordinates[0]];
+
+        // add it to the map
+        map.addSource('trace2', { type: 'geojson', data: data });
+        map.addLayer({
+            "id": "trace2",
+            "type": "line",
+            "source": "trace2",
+            "paint": {
+                "line-color": "yellow",
+                "line-opacity": 0.75,
+                "line-width": 5
+            }
+        });
+
+        // setup the viewport
+        map.jumpTo({ 'center': coordinates[0], 'zoom': 14 });
+        map.setPitch(30);
+
+        // on a regular basis, add more coordinates from the saved list and update the map
+        var i = 0;
+        var timer2 = window.setInterval(function() {
+            if (i < coordinates.length) {
+                if (status == 0) {
+                    coordinate = [coordinates[i][0]-0.003, coordinates[i][1]+0.001]
+                    data.features[0].geometry.coordinates.push(coordinate);
+                }
+                else {
+                    coordinate = coordinates[i]
+                    data.features[0].geometry.coordinates.push(coordinate);
+                }
+                map.getSource('trace2').setData(data);
+                map.panTo(coordinate);
+                popup2.setLngLat(coordinate);
+                if(i > 0.97*coordinates.length && status == 1){
+                    popup2.setHTML('<h2 style="color: red">Danger! Collided</h3><b>Flipkart S24</b>');
+                } else if(i > 0.58*coordinates.length){
+                    popup2.setHTML('<h2 style="color: orange">Warning! Collision in Vicinity</h3><b>Flipkart S24</b>');
+                }
+                i++;
+            } else {
+                window.clearInterval(timer2);
+            }
+        }, 100);
+    });
+});
+</script>
+
+</body>
+</html>
